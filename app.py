@@ -11,11 +11,11 @@ LOGO_SVG = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdm
 
 # --- 2. SUPABASE CONNECTION ---
 try:
-    SUPABASE_URL = st.secrets["SUPABASE_URL"]
-    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    supabase: Client = create_client(url, key)
 except Exception as e:
-    st.error("⚠️ Configuration Error: Check your Streamlit Secrets!")
+    st.error("⚠️ Configuration Error: Please check your Streamlit Secrets.")
     st.stop()
 
 def hash_pw(pw): return hashlib.sha256(str.encode(pw)).hexdigest()
@@ -23,7 +23,7 @@ def hash_pw(pw): return hashlib.sha256(str.encode(pw)).hexdigest()
 # --- 3. UI DESIGN (CSS & ANIMATIONS) ---
 st.markdown(f"""
     <style>
-    /* Splash Screen Styling */
+    /* Splash Screen Animation */
     #splash-screen {{
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         background-color: #FFD300; display: flex; flex-direction: column;
@@ -44,8 +44,8 @@ st.markdown(f"""
         100% {{ opacity: 0; scale: 2.5; }} 
     }}
 
-    /* Video Styling */
-    .stVideo {{ border-radius: 15px; overflow: hidden; }}
+    /* Global Video Styles */
+    .stVideo {{ border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }}
     </style>
     
     <div id="splash-screen">
@@ -83,11 +83,11 @@ with st.sidebar:
             
         p = st.text_input("Password", type="password")
         
-        if st.button("Submit"):
+        if st.button("Go"):
             if mode == "Sign Up":
                 if u and p and email_val:
                     try:
-                        # Check if user exists
+                        # Check if username exists
                         check = supabase.table("users").select("username").eq("username", u).execute()
                         if check.data:
                             st.error("Username already taken!")
@@ -98,8 +98,8 @@ with st.sidebar:
                                 "email": email_val
                             }).execute()
                             st.success("Account created! Please switch to Login.")
-                    except:
-                        st.error("Error connecting to database.")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
                 else:
                     st.warning("Please fill all fields, including Email.")
             else:
@@ -108,7 +108,7 @@ with st.sidebar:
                 if res.data:
                     st.session_state.logged_in = True
                     st.session_state.username = res.data[0]['username']
-                    st.session_state.email = res.data[0].get('email', 'No email set')
+                    st.session_state.email = res.data[0].get('email', 'No email')
                     st.rerun()
                 else:
                     st.error("Invalid username or password.")
@@ -119,7 +119,7 @@ with st.sidebar:
             st.session_state.logged_in = False
             st.rerun()
 
-# --- 6. MAIN CONTENT (OPEN GLOBAL FEED) ---
+# --- 6. MAIN CONTENT (PUBLIC FEED) ---
 if st.session_state.show_emoji:
     st.markdown('<div class="floating-emoji">🤣</div>', unsafe_allow_html=True)
     st.session_state.show_emoji = False
@@ -132,12 +132,12 @@ with tab1:
         # Fetching videos with Try/Except to prevent app crash
         vids_res = supabase.table("videos").select("*").order("id", desc=True).execute()
         vids = vids_res.data if vids_res.data else []
-    except:
-        st.warning("🔄 Connecting to Joy Database...")
+    except Exception:
+        st.warning("🔄 Connecting to the joy database... Please wait.")
         vids = []
 
     if not vids:
-        st.info("The feed is empty. Be the first to post a laugh! 📤")
+        st.info("The feed is empty. Be the first to share joy! 📤")
         
     for v in vids:
         with st.container():
@@ -147,7 +147,7 @@ with tab1:
             c1.caption(f"Created by: @{v.get('uploader_name', 'Guest')} | 🤣 {v.get('haha_count', 0)} laughs")
             
             if c2.button(f"🤣 Ha Ha", key=f"btn_{v['id']}"):
-                # Trigger Laughter Sound & Visuals
+                # Trigger Laughter Sound & Emoji
                 st.components.v1.html("<script>window.parent.playHaha();</script>", height=0)
                 st.session_state.show_emoji = True
                 
@@ -182,6 +182,6 @@ with tab2:
                         time.sleep(1)
                         st.rerun()
                     except:
-                        st.error("Upload failed. Check your database connection.")
+                        st.error("Upload failed. Check your connection.")
                 else:
                     st.error("Please provide both a title and a link.")
